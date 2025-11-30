@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { connectToHub, disconnectFromHub } from "./signalR";
 
 function App()
@@ -7,13 +7,49 @@ function App()
   const [connected, setConnected] = useState(false);
   const [notifications, setNotifications] = useState([]);
 
+  useEffect(() =>
+  {
+    const savedId = localStorage.getItem("userId");
+    if (savedId)
+    {
+      setUserId(savedId);
+
+      // Auto connect on reload
+      connectToHub(savedId, (msg) =>
+      {
+        setNotifications((prev) =>
+        {
+          const updated = [msg, ...prev];
+          localStorage.setItem("notifications", JSON.stringify(updated));
+          return updated;
+        });
+      }).then(() =>
+      {
+        setConnected(true);
+      });
+    }
+
+    const savedNotifications = localStorage.getItem("notifications");
+    if (savedNotifications)
+    {
+      setNotifications(JSON.parse(savedNotifications));
+    }
+  }, []);
+
   const start = async () =>
   {
     if (!userId) return alert("Please enter userId");
 
+    localStorage.setItem("userId", userId);
+
     await connectToHub(userId, (msg) =>
     {
-      setNotifications((prev) => [msg, ...prev]);
+      setNotifications((prev) =>
+      {
+        const updated = [msg, ...prev];
+        localStorage.setItem("notifications", JSON.stringify(updated));
+        return updated;
+      });
     });
 
     setConnected(true);
@@ -23,6 +59,7 @@ function App()
   {
     disconnectFromHub(userId);
     setConnected(false);
+    localStorage.clear();
   };
 
   return (
